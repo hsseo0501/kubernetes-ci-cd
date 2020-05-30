@@ -5,58 +5,182 @@ parts:
     steps:
 
       - cap: Start up the Kubernetes cluster with Minikube, giving it some extra resources.
-        com: minikube start --memory 8000 --cpus 2 --kubernetes-version v1.11.0
+        com: minikube start --memory 8000 --cpus 2 --kubernetes-version v1.12.0
+      #😄  Darwin 10.14.6 위의 minikube v1.9.2
+      #✨  자동적으로 hyperkit 드라이버가 선택되었습니다
+      #👍  Starting control plane node m01 in cluster minikube
+      #🔥  hyperkit VM (CPUs=2, Memory=8000MB, Disk=20000MB) 를 생성하는 중 ...
+      #🐳  쿠버네티스 v1.12.0 을 Docker 19.03.8 런타임으로 설치하는 중
+      #🌟  애드온을 활성화하는 중: default-storageclass, storage-provisioner
+      #🏄  끝났습니다! 이제 kubectl 이 "minikube" 를 사용할 수 있도록 설정되었습니다
+      #
+      #❗  /usr/local/bin/kubectl 의 버전은 v1.18.2 이므로, 쿠버네티스 버전 v1.12.0 과 호환되지 않을 수 있습니다
+      #💡  맞는 버전의 kubectl 을 사용하기 위해서는 다음과 같이 사용 가능합니다. minikube kubectl -- get pods'
 
-      - cap: Enable the Minikube add-ons Heapster and Ingress.
-        com: minikube addons enable heapster; minikube addons enable ingress
+      - cap: Confirm addons list
+        com: minikube addons list
+      #|-----------------------------|----------|--------------|
+      #|         ADDON NAME          | PROFILE  |    STATUS    |
+      #|-----------------------------|----------|--------------|
+      #| dashboard                   | minikube | disabled     |
+      #| default-storageclass        | minikube | enabled ✅   |
+      #| efk                         | minikube | disabled     |
+      #| freshpod                    | minikube | disabled     |
+      #| gvisor                      | minikube | disabled     |
+      #| helm-tiller                 | minikube | disabled     |
+      #| ingress                     | minikube | disabled     |
+      #| ingress-dns                 | minikube | disabled     |
+      #| istio                       | minikube | disabled     |
+      #| istio-provisioner           | minikube | disabled     |
+      #| logviewer                   | minikube | disabled     |
+      #| metrics-server              | minikube | disabled     |
+      #| nvidia-driver-installer     | minikube | disabled     |
+      #| nvidia-gpu-device-plugin    | minikube | disabled     |
+      #| registry                    | minikube | disabled     |
+      #| registry-aliases            | minikube | disabled     |
+      #| registry-creds              | minikube | disabled     |
+      #| storage-provisioner         | minikube | enabled ✅   |
+      #| storage-provisioner-gluster | minikube | disabled     |
+      #|-----------------------------|----------|--------------|
+
+      - cap: Enable the Minikube add-ons Heapster.
+        com: minikube addons enable heapster # The heapster addon is not exist
+
+      - cap: Enable the Minikube add-ons Ingress.
+        com: minikube addons enable ingress
+      #🌟  The 'ingress' addon is enabled
 
       - cap: View the Minikube Dashboard, a web UI for managing deployments.
-        com: minikube service kubernetes-dashboard --namespace kube-system
+        com: minikube service kubernetes-dashboard --namespace kube-system # This command is not operated
+
+      - cap: View the Minikube Dashboard, a web UI for managing deployments.
+        com: minikube dashboard
+      #🔌  대시보드를 활성화하는 중 ...
+      #🤔  Verifying dashboard health ...
+      #🚀  프록시를 시작하는 중 ...
+      #🤔  Verifying proxy health ...
+      #🎉  Opening http://127.0.0.1:57871/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/ in your default browser...
+      # Figure01
 
       - cap: Deploy the public nginx image from DockerHub into a pod. Nginx is an open source web server that will automatically download from Docker Hub if it’s not available locally.
         com: kubectl run nginx --image nginx --port 80
+      # pod/nginx created
 
       - cap: Create a K8s Service for the deployment. This will expose the nginx pod so you can access it with a web browser.
-        com: kubectl expose deployment nginx --type NodePort --port 80
+        com: kubectl expose pod nginx --type NodePort --port 80
+      # service/nginx exposed
 
       - cap: Launch a web browser to test the service. The nginx welcome page displays, which means the service is up and running.
         com: minikube service nginx
-        
+      #|-----------|-------|-------------|---------------------------|
+      #| NAMESPACE | NAME  | TARGET PORT |            URL            |
+      #|-----------|-------|-------------|---------------------------|
+      #| default   | nginx |          80 | http://192.168.64.9:31120 |
+      #|-----------|-------|-------------|---------------------------|
+      #🎉  Opening service default/nginx in default browser...
+      # Figure02
+
       - cap: Delete the nginx deployment and service you created. 
-        com: kubectl delete service nginx; kubectl delete deployment nginx
+        com: kubectl delete service nginx; kubectl delete pod nginx
+      #service "nginx" deleted
+      #pod "nginx" deleted
 
       - cap: Set up the cluster registry by applying a .yaml manifest file.
         com: kubectl apply -f manifests/registry.yaml
+      #persistentvolume/registry created
+      #persistentvolumeclaim/registry-claim created
+      #service/registry created
+      #service/registry-ui created
+      #deployment.extensions/registry created
 
       - cap: Wait for the registry to finish deploying. Note that this may take several minutes.
         com: kubectl rollout status deployments/registry
+      #Waiting for deployment "registry" rollout to finish: 0 of 1 updated replicas are available...
+      #deployment "registry" successfully rolled out
 
       - cap: View the registry user interface in a web browser.
         com: minikube service registry-ui
+      #|-----------|-------------|---------------|---------------------------|
+      #| NAMESPACE |    NAME     |  TARGET PORT  |            URL            |
+      #|-----------|-------------|---------------|---------------------------|
+      #| default   | registry-ui | registry/8080 | http://192.168.64.9:31847 |
+      #|-----------|-------------|---------------|---------------------------|
+      #🎉  Opening service default/registry-ui in default browser...
+      # Figure03
 
-      - cap: Let’s make a change to an HTML file in the cloned project. Open the /applications/hello-kenzan/index.html file in your favorite text editor (for example, you can use nano by running the command 'nano applications/hello-kenzan/index.html' in a separate terminal). Change some text inside one of the <p> tags. For example, change “Hello from Kenzan!” to “Hello from Me!”. Save the file. 
+      - cap: Let’s make a change to an HTML file in the cloned project. Open the /applications/hello-kenzan/index.html file in your favorite text editor (for example, you can use nano by running the command 'nano applications/hello-kenzan/index.html' in a separate terminal). Change some text inside one of the <p> tags. For example, change “Hello from Kenzan!” to “Hello from Me!”. Save the file.
         com: echo ''
 
       - cap: Now let’s build an image, giving it a special name that points to our local cluster registry.
         com: docker build -t 127.0.0.1:30400/hello-kenzan:latest -f applications/hello-kenzan/Dockerfile applications/hello-kenzan
+      #Sending build context to Docker daemon  71.68kB
+      #Step 1/4 : FROM nginx:latest
+      # ---> 9beeba249f3e
+      #Step 2/4 : COPY index.html /usr/share/nginx/html/index.html
+      # ---> Using cache
+      # ---> dd464528682d
+      #Step 3/4 : COPY DockerFileEx.jpg /usr/share/nginx/html/DockerFileEx.jpg
+      # ---> Using cache
+      # ---> d648539b35d6
+      #Step 4/4 : EXPOSE 80
+      # ---> Using cache
+      # ---> 72f29420b40d
+      #Successfully built 72f29420b40d
+      #Successfully tagged 127.0.0.1:30400/hello-kenzan:latest
 
       - cap: We’ve built the image, but before we can push it to the registry, we need to set up a temporary proxy. By default the Docker client can only push to HTTP (not HTTPS) via localhost. To work around this, we’ll set up a Docker container that listens on 127.0.0.1:30400 and forwards to our cluster. First, build the image for our proxy container.
         com: docker build -t socat-registry -f applications/socat/Dockerfile applications/socat
+      #Sending build context to Docker daemon  3.072kB
+      #Step 1/4 : FROM alpine:latest
+      # ---> a24bb4013296
+      #Step 2/4 : RUN apk update && apk upgrade && apk add bash socat
+      # ---> Using cache
+      # ---> d5e500291983
+      #Step 3/4 : COPY entrypoint.sh entrypoint.sh
+      # ---> Using cache
+      # ---> f0f805fbda78
+      #Step 4/4 : ENTRYPOINT ["sh", "./entrypoint.sh"]
+      # ---> Using cache
+      # ---> d4247dc31c0b
+      #Successfully built d4247dc31c0b
+      #Successfully tagged socat-registry:latest
 
       - cap: Now run the proxy container from the newly created image. (Note that you may see some errors; this is normal as the commands are first making sure there are no previous instances running.)
         com: docker stop socat-registry; docker rm socat-registry; docker run -d -e "REG_IP=`minikube ip`" -e "REG_PORT=30400" --name socat-registry -p 30400:5000 socat-registry
+      #socat-registry
+      #socat-registry
+      #f3c09d2358631f01e172aeef23f8c411a2ef72ad027f3db29ddefd8eda367bc7
 
       - cap: With our proxy container up and running, we can now push our hello-kenzan image to the local repository.
         com: docker push 127.0.0.1:30400/hello-kenzan:latest
+      #The push refers to repository [127.0.0.1:30400/hello-kenzan]
+      #943b3bfb03e5: Pushed
+      #c30c33dc6594: Pushed
+      #6c7de695ede3: Pushed
+      #2f4accd375d9: Pushed
+      #ffc9b21953f4: Pushed
+      #latest: digest: sha256:7c6d55762f0e72fc1a8c0a4fd424a211f78bedb2ee8bbff39943a18333f5d7e6 size: 1364
 
       - cap: The proxy’s work is done, so you can go ahead and stop it.
         com: docker stop socat-registry;
+      #socat-registry
 
       - cap: With the image in our cluster registry, the last thing to do is apply the manifest to create and deploy the hello-kenzan pod based on the image.
         com: kubectl apply -f applications/hello-kenzan/k8s/manual-deployment.yaml
+      #service/hello-kenzan created
+      #deployment.extensions/hello-kenzan created
 
       - cap: Launch a web browser and view the service.
         com: minikube service hello-kenzan
+      #|-----------|--------------|-------------|---------------------------|
+      #| NAMESPACE |     NAME     | TARGET PORT |            URL            |
+      #|-----------|--------------|-------------|---------------------------|
+      #| default   | hello-kenzan |          80 | http://192.168.64.9:30911 |
+      #|-----------|--------------|-------------|---------------------------|
+      #🎉  Opening service default/hello-kenzan in default browser...
+      # Figure04
 
       - cap: Delete the hello-kenzan deployment and service you created. 
         com: kubectl delete service hello-kenzan; kubectl delete deployment hello-kenzan
+      #service "hello-kenzan" deleted
+      #deployment.extensions "hello-kenzan" deleted
